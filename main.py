@@ -41,7 +41,7 @@ class RAGEngine:
         } for hit in hits]
 
 
-    def execute_pipeline(
+    async def execute_pipeline(
         self,
         query: str,
         db_type: str,
