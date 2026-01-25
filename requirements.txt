@@ -1,0 +1,4 @@
+mcp
+qdrant-client
+pymilvus
+langchain_huggingface
