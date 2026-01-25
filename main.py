@@ -155,16 +155,6 @@ class RAGEngine:
 
 
 # --------------------------------------------------
-# Engine init (safe)
-# --------------------------------------------------
-try:
-    rag_engine = RAGEngine()
-except Exception as e:
-    logger.error(f"Failed to initialize engine: {e}")
-    rag_engine = None
-
-
-# --------------------------------------------------
 # MCP Tool
 # --------------------------------------------------
 @mcp.tool()
@@ -177,6 +167,13 @@ async def universal_rag_executor(
     rerank_config: Dict[str, Any],
     query_vector: Optional[List[float]] = Field(default=None),
 ) -> str:
+    
+    try:
+        rag_engine = RAGEngine()
+    except Exception as e:
+        logger.error(f"Failed to initialize engine: {e}")
+        rag_engine = None
+        
     if not rag_engine:
         return "RAG engine not initialized"
 
