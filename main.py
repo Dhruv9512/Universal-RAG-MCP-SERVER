@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 # Initialize the MCP Server
 mcp = FastMCP("Universal RAG Server")
 
+# Global placeholder for the engine
+_rag_engine_instance = None
+
 class RAGEngine:
     def __init__(self):
         logger.info("Initializing RAG Engine & Loading Models...")
@@ -35,10 +38,7 @@ class RAGEngine:
         logger.info("Models loaded successfully.")
 
     def _handle_qdrant_sync(self, connection: Dict, collection: str, vector: List[float], config: Dict) -> List[Dict]:
-        """
-        Synchronous helper to handle Qdrant connections. 
-        Note: We keep this sync but call it via to_thread.
-        """
+        """Synchronous Qdrant logic to be run in a thread."""
         url = connection.get("url")
         api_key = connection.get("api_key")
         
@@ -71,7 +71,7 @@ class RAGEngine:
         query_vector: Optional[List[float]] = None
     ) -> str:
         try:
-            # 1. Generate Embedding (Offload to thread)
+            # 1. Embedding (Threaded)
             final_vector = []
             if query_vector and len(query_vector) > 0:
                 final_vector = query_vector
@@ -80,7 +80,7 @@ class RAGEngine:
                 if hasattr(final_vector, 'tolist'):
                     final_vector = final_vector.tolist()
 
-            # 2. Route to DB (Offload to thread)
+            # 2. Retrieval (Threaded)
             raw_results = []
             if db_type.lower() == "qdrant":
                 raw_results = await asyncio.to_thread(
@@ -96,15 +96,13 @@ class RAGEngine:
             if not raw_results:
                 return "No documents found."
 
-            # 3. Reranking (Offload to thread)
+            # 3. Reranking (Threaded)
             rerank_method = rerank_config.get("method", "none")
             top_n = rerank_config.get("top_n", 3)
             final_results = []
             
             if rerank_method == "cross_encoder":
                 pairs = [[query, doc["content"]] for doc in raw_results]
-                
-                # Run sync reranking in a thread
                 scores = await asyncio.to_thread(self.reranker.text_classification, pairs)
                 
                 for i, doc in enumerate(raw_results):
@@ -113,26 +111,24 @@ class RAGEngine:
             else:
                 final_results = raw_results[:top_n]
 
-            # 4. Format Output
+            # 4. Format
             output = f"Strategy: {db_type} -> {rerank_method}\n"
             output += "(Used external vector)\n\n" if query_vector else "(Used internal embedding)\n\n"
-                
             for i, doc in enumerate(final_results):
                 score = doc.get("rerank_score", doc["score"])
                 output += f"--- Result {i+1} (Score: {score:.4f}) ---\n{doc['content']}\n\n"
-                
             return output
 
         except Exception as e:
             logger.error(f"Pipeline Error: {e}")
             return f"Pipeline Error: {str(e)}"
 
-# --- Instantiate the Engine ---
-try:
-    rag_engine = RAGEngine()
-except Exception as e:
-    logger.warning(f"Engine failed to load on startup (check Env Vars): {e}")
-    rag_engine = None
+# --- Helper to get/init the engine ---
+def get_engine():
+    global _rag_engine_instance
+    if _rag_engine_instance is None:
+        _rag_engine_instance = RAGEngine()
+    return _rag_engine_instance
 
 # --- Register the Tool ---
 @mcp.tool()
@@ -146,14 +142,13 @@ async def universal_rag_executor(
     query_vector: Optional[List[float]] = Field(default=None, description="Pre-computed embedding vector.")
 ) -> str:
     """Executes a RAG pipeline asynchronously."""
-    if not rag_engine:
-        return "Error: RAG Engine not initialized (likely missing API Token)."
-        
-    return await rag_engine.execute_pipeline(
-        query, db_type, connection_config, collection_name, retrieval_config, rerank_config, query_vector
-    )
+    try:
+        engine = get_engine()
+        return await engine.execute_pipeline(
+            query, db_type, connection_config, collection_name, retrieval_config, rerank_config, query_vector
+        )
+    except Exception as e:
+        return f"System Error: {str(e)}"
 
-# --- Entry Point ---
-if __name__ == "__main__":
-    # mcp.run()
-    mcp.run(transport="sse", host="0.0.0.0", port=8000)
+# if __name__ == "__main__":
+#     mcp.run()
