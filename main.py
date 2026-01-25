@@ -2,7 +2,7 @@ import asyncio
 import os
 from typing import Dict, Any, Optional, List
 from mcp.server.fastmcp import FastMCP
-from sentence_transformers import CrossEncoder
+from huggingface_hub import InferenceClient
 from pydantic import Field
 from langchain_huggingface import HuggingFaceEndpointEmbeddings 
 # Initialize the MCP Server
@@ -12,7 +12,7 @@ class RAGEngine:
     def __init__(self):
         print("Initializing RAG Engine & Loading Models... (This may take a moment)")
         self.embedder = HuggingFaceEndpointEmbeddings(model="sentence-transformers/all-MiniLM-L6-v2",huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN"))
-        self.reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+        self.reranker = InferenceClient(model="cross-encoder/ms-marco-MiniLM-L-6-v2",token=os.getenv("HUGGINGFACEHUB_API_TOKEN"))
         print("Models loaded successfully.")
 
     def _handle_qdrant(self, connection: Dict, collection: str, vector: List[float], config: Dict) -> List[Dict]:
@@ -84,7 +84,7 @@ class RAGEngine:
                 pairs = [[query, doc["content"]] for doc in raw_results]
                 
                 # Run reranking in thread pool
-                scores = self.reranker.predict(pairs)
+                scores = self.reranker.text_classification(pairs)
                 
                 for i, doc in enumerate(raw_results):
                     doc["rerank_score"] = float(scores[i])
