@@ -24,27 +24,43 @@ mcp = FastMCP("Universal RAG Server")
 
 
 # --------------------------------------------------
-# RAG Engine
+# RAG Engine (CLOUD SAFE)
 # --------------------------------------------------
 class RAGEngine:
     def __init__(self):
+        # IMPORTANT: no heavy work here
+        self._initialized = False
+        self.embedder = None
+        self.reranker = None
+
+    async def init(self):
+        """
+        One-time async initialization.
+        Safe for FastMCP Cloud.
+        """
+        if self._initialized:
+            return
+
         logger.info("Initializing RAG Engine & Loading Models...")
 
         api_token = os.getenv("HUGGINGFACEHUB_API_TOKEN")
         if not api_token:
             raise RuntimeError("HUGGINGFACEHUB_API_TOKEN not set")
 
-        self.embedder = HuggingFaceEndpointEmbeddings(
+        # Run blocking constructors in background threads
+        self.embedder = await asyncio.to_thread(
+            HuggingFaceEndpointEmbeddings,
             model="sentence-transformers/all-MiniLM-L6-v2",
             huggingfacehub_api_token=api_token,
         )
 
-        # HF Inference API cross-encoder (REMOTE, blocking HTTP)
-        self.reranker = InferenceClient(
+        self.reranker = await asyncio.to_thread(
+            InferenceClient,
             model="cross-encoder/ms-marco-MiniLM-L-6-v2",
             token=api_token,
         )
 
+        self._initialized = True
         logger.info("Models loaded successfully.")
 
     # -----------------------------
@@ -91,6 +107,9 @@ class RAGEngine:
         rerank_config: Dict[str, Any],
         query_vector: Optional[List[float]] = None,
     ) -> str:
+        # Ensure engine is initialized
+        await self.init()
+
         try:
             # 1. Embedding
             if query_vector:
@@ -155,6 +174,12 @@ class RAGEngine:
 
 
 # --------------------------------------------------
+# SINGLE GLOBAL ENGINE (NO INIT HERE)
+# --------------------------------------------------
+rag_engine = RAGEngine()
+
+
+# --------------------------------------------------
 # MCP Tool
 # --------------------------------------------------
 @mcp.tool()
@@ -167,16 +192,6 @@ async def universal_rag_executor(
     rerank_config: Dict[str, Any],
     query_vector: Optional[List[float]] = Field(default=None),
 ) -> str:
-    
-    try:
-        rag_engine = RAGEngine()
-    except Exception as e:
-        logger.error(f"Failed to initialize engine: {e}")
-        rag_engine = None
-        
-    if not rag_engine:
-        return "RAG engine not initialized"
-
     return await rag_engine.execute_pipeline(
         query,
         db_type,
@@ -191,11 +206,7 @@ async def universal_rag_executor(
 # --------------------------------------------------
 # IMPORTANT
 # --------------------------------------------------
-# ❌ DO NOT call mcp.run() when using MCP CLI
-# The CLI already manages the asyncio event loop.
+# ❌ DO NOT call mcp.run() in FastMCP Cloud
+# The platform manages the event loop.
 #
-# If you run this file directly (python file.py),
-# then uncomment below.
-#
-# if __name__ == "__main__":
-#     mcp.run(transport="sse", host="0.0.0.0", port=8000)
+# This file must contain ONLY definitions.
