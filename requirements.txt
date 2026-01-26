@@ -3,3 +3,4 @@ qdrant-client
 pymilvus
 langchain_huggingface
 huggingface_hub
+langchain_qdrant
