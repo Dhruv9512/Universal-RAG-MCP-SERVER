@@ -1,9 +1,14 @@
-import logging
+import nest_asyncio
+import asyncio
+nest_asyncio.apply()
+
 from typing import Dict, Any, Optional, List
 from typing_extensions import Literal
+from pydantic import BaseModel, Field
 
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, Field
+
+import logging
 
 from rag.engine import RAGEngine
 
