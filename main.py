@@ -1,4 +1,3 @@
-raise RuntimeError("I AM THE NEW VERSION")
 import nest_asyncio
 import asyncio
 nest_asyncio.apply()
@@ -157,9 +156,6 @@ def rag_retrieve_and_rerank(
     except ValueError as e:
         logger.error(str(e))
         return str(e)
-
-   
-
     # -----------------------------
     # Execute pipeline
     # -----------------------------
@@ -177,13 +173,3 @@ def rag_retrieve_and_rerank(
         return f"Pipeline execution error: {str(e)}"
 
 
-# --------------------------------------------------
-# RUN SERVER
-# --------------------------------------------------
-# if __name__ == "__main__":
-#     mcp.run(
-#         transport="sse",
-#         host="0.0.0.0",
-#         port=8000,
-#     )
-    # mcp.run()
