@@ -2,16 +2,14 @@ import nest_asyncio
 import asyncio
 nest_asyncio.apply()
 
-from typing import Dict, Any, Optional, List
+
 from typing_extensions import Literal
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from mcp.server.fastmcp import FastMCP
 
 import logging
 
-from rag.engine import RAGEngine
-from utility import resolve_connection
 from pydamic import RetrievalConfig, RerankConfig
 
 
@@ -65,6 +63,8 @@ def rag_retrieve_and_rerank(
     MCP tool that executes retrieval + optional reranking.
     Returns CONTEXT, not a final answer.
     """
+    from rag.engine import RAGEngine
+    from utility import resolve_connection
     # -----------------------------
     # Initialize RAG engine
     # -----------------------------
