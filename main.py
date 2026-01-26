@@ -11,6 +11,9 @@ from mcp.server.fastmcp import FastMCP
 import logging
 
 from rag.engine import RAGEngine
+from utility import resolve_connection
+from pydamic import RetrievalConfig, RerankConfig
+
 
 
 # --------------------------------------------------
@@ -24,83 +27,6 @@ logger = logging.getLogger(__name__)
 # MCP Server
 # --------------------------------------------------
 mcp = FastMCP("Universal RAG Server")
-
-
-# --------------------------------------------------
-# DB-SPECIFIC CONNECTION PROFILES (SERVER ONLY)
-# --------------------------------------------------
-CONNECTION_PROFILES: Dict[str, Dict[str, Dict[str, Any]]] = {
-    "qdrant": {
-        "default": {
-            "host": "localhost",
-            "port": 6333,
-            "api_key": None,
-        },
-        "prod": {
-            "host": "qdrant.prod.internal",
-            "port": 6333,
-            "api_key": None,
-        },
-    },
-
-    "milvus": {
-        "default": {
-            "host": "localhost",
-            "port": 19530,
-            "user": None,
-            "password": None,
-        },
-    },
-
-    "pinecone": {
-        "default": {
-            "api_key": "ENV:PINECONE_API_KEY",
-            "environment": "us-east-1",
-            "index_name": "docs-index",
-        },
-    },
-}
-
-
-# --------------------------------------------------
-# CONFIG MODELS (STRICT + ENUM-SAFE)
-# --------------------------------------------------
-class RetrievalConfig(BaseModel):
-    top_k: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        description="Number of documents to retrieve before reranking."
-    )
-
-
-class RerankConfig(BaseModel):
-    method: Literal["none", "cross_encoder"] = Field(
-        default="cross_encoder",
-        description="Reranking method to apply."
-    )
-    top_n: int = Field(
-        default=3,
-        ge=1,
-        le=20,
-        description="Number of documents after reranking."
-    )
-
-
-# --------------------------------------------------
-# HELPERS
-# --------------------------------------------------
-def resolve_connection(db_type: str, profile: str) -> Dict[str, Any]:
-    """
-    Resolve DB-specific connection config safely.
-    """
-    try:
-        return CONNECTION_PROFILES[db_type][profile]
-    except KeyError:
-        raise ValueError(
-            f"Invalid connection profile '{profile}' for db '{db_type}'"
-        )
-
 
 # --------------------------------------------------
 # MCP TOOL
