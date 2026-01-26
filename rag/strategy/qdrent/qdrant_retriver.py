@@ -1,6 +1,6 @@
 
 from typing import Dict, Any, List, Optional
-from dbClient import dbClient
+from rag.dbClient import dbClient
 
 
 class qdrentVectorStrategy():

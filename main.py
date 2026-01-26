@@ -97,6 +97,14 @@ def resolve_connection(db_type: str, profile: str) -> Dict[str, Any]:
         )
 
 
+# -----------------------------
+# Initialize RAG engine
+# -----------------------------
+try:
+    rag_engine = RAGEngine()
+except Exception as e:
+    logger.exception("Failed to initialize RAG engine")
+ 
 # --------------------------------------------------
 # MCP TOOL
 # --------------------------------------------------
@@ -144,14 +152,7 @@ def rag_retrieve_and_rerank(
         logger.error(str(e))
         return str(e)
 
-    # -----------------------------
-    # Initialize RAG engine
-    # -----------------------------
-    try:
-        rag_engine = RAGEngine()
-    except Exception as e:
-        logger.exception("Failed to initialize RAG engine")
-        return "RAG engine initialization failed."
+   
 
     # -----------------------------
     # Execute pipeline
