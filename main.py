@@ -1,8 +1,3 @@
-import nest_asyncio
-import asyncio
-nest_asyncio.apply()
-
-
 from typing_extensions import Literal
 from pydantic import Field
 
@@ -95,5 +90,9 @@ def rag_retrieve_and_rerank(
     except Exception as e:
         logger.exception("RAG pipeline execution failed")
         return f"Pipeline execution error: {str(e)}"
+
+
+if __name__ == "__main__":
+    mcp.run()
 
 
